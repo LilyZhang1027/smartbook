@@ -291,8 +291,6 @@ To download images with Bing Image Search, sign up at Microsoft for a free accou
 
 要在必应的图片搜索引擎上下载图片，需要先注册一个微软的免费账号。然后你会拿到一个秘钥，你可以复制并输入如下代码（将'XXX'替换成你的秘钥并执行）：
 
-In [ ]:
-
 ```
 key = 'XXX'
 ```
@@ -559,7 +557,7 @@ bears = DataBlock(
 
 Let's look at each of these arguments in turn. First we provide a tuple where we specify what types we want for the independent and dependent variables:
 
-让我们依次看一下这些参数。首先我们提供一个数组来确定我们想要什么类型的非独立变量和独立变量:
+让我们依次看一下这些参数。首先我们提供一个数组来确定我们想要什么类型的自变量和应变量:
 
 ```
 blocks=(ImageBlock, CategoryBlock)
@@ -567,40 +565,246 @@ blocks=(ImageBlock, CategoryBlock)
 
 
 
+The *independent variable* is the thing we are using to make predictions from, and the *dependent variable* is our target. In this case, our independent variables are images, and our dependent variables are the categories (type of bear) for each image. We will see many other types of block in the rest of this book.
+
+*自变量*是用来进行预测的，而*应变量*才是我们的目标。在这个案例中，我们的自变量是图片，应变量是各张图片的分类（基于图中熊的种类）。在接下来的内容中我们还会见到许多其他种类的模块。
 
 
-
-
-
-
-<from here>The *independent variable* is the thing we are using to make predictions from, and the *dependent variable* is our target. In this case, our independent variables are images, and our dependent variables are the categories (type of bear) for each image. We will see many other types of block in the rest of this book.
 
 For this `DataLoaders` our underlying items will be file paths. We have to tell fastai how to get a list of those files. The `get_image_files` function takes a path, and returns a list of all of the images in that path (recursively, by default):
+
+`DataLoaders`指我们隐藏的内容即文件的路径。我们要告诉fastai如何获得这些文件的列表。`get_image_files`函数会访问一个路径然后返回一张包含这个路径里所有的图片的列表（默认是递归的方式）：
+
+
 
 ```
 get_items=get_image_files
 ```
 
+
+
 Often, datasets that you download will already have a validation set defined. Sometimes this is done by placing the images for the training and validation sets into different folders. Sometimes it is done by providing a CSV file in which each filename is listed along with which dataset it should be in. There are many ways that this can be done, and fastai provides a very general approach that allows you to use one of its predefined classes for this, or to write your own. In this case, however, we simply want to split our training and validation sets randomly. However, we would like to have the same training/validation split each time we run this notebook, so we fix the random seed (computers don't really know how to create random numbers at all, but simply create lists of numbers that look random; if you provide the same starting point for that list each time—called the *seed*—then you will get the exact same list each time):
+
+通常你下载的数据集已经包含了一个被定义的变量集。有时候是通过将用来训练的图片和变量集放进不同的文件夹，有时候是通过提供一个CSV文件，其中所有的文件名都根据他所属的数据集进行罗列。有很多方法可以实现这个功能，而fastai则是提供了一个非常通用的方法——你可以使用其中一个预定义的类或者自己定义一个类。在这个例子中我们只是想要随机划分我们的训练集和变量集。不过我们想要每次执行我们的笔记时都能够划分出同样的结果，所以我们修复了随机种子（计算机完全不知道如何生成随机数，他只是生成一张看上去很随机的列表；如果你每次都规定好起始点—称作种子—那你每次都能得到同样的列表）：
 
 ```
 splitter=RandomSplitter(valid_pct=0.2, seed=42)
 ```
 
+
+
 The independent variable is often referred to as `x` and the dependent variable is often referred to as `y`. Here, we are telling fastai what function to call to create the labels in our dataset:
+
+自变量通常用`x`表示，应变量则是`y`。此处我们要告诉fastai该调用什么函数来创建我们数据集里的标签：
 
 ```
 get_y=parent_label
 ```
 
+
+
 `parent_label` is a function provided by fastai that simply gets the name of the folder a file is in. Because we put each of our bear images into folders based on the type of bear, this is going to give us the labels that we need.
 
+`parent_label`是fastai提供的函数，用来获取包含文件的文件夹名。因为我们依据熊的种类将他们的图片放进不同的文件夹，我们将能够得到我们要的标签。
+
 Our images are all different sizes, and this is a problem for deep learning: we don't feed the model one image at a time but several of them (what we call a *mini-batch*). To group them in a big array (usually called a *tensor*) that is going to go through our model, they all need to be of the same size. So, we need to add a transform which will resize these images to the same size. *Item transforms* are pieces of code that run on each individual item, whether it be an image, category, or so forth. fastai includes many predefined transforms; we use the `Resize` transform here:
+
+我们的图片都是不同尺寸的，这也是深度学习面临的一个问题：我们会一次给模型几张图片（我们称之为*小批量*）。如果要将他们都放在一个输入模型的大向量里（通常叫做*张量*），他们需要尺寸一致。所以我们要添加一个转换操作将这些图片转换成同意尺寸。*对象转换*是每个独立项目中运行的代码片段，不论这个对象是一张图片，一个类目或是其他。fastai包含了许多预定义的转换；此处我们可以使用`Resize`：
 
 ```
 item_tfms=Resize(128)
 ```
 
+
+
 This command has given us a `DataBlock` object. This is like a *template* for creating a `DataLoaders`. We still need to tell fastai the actual source of our data—in this case, the path where the images can be found:
 
-In [ ]:
+这个命令为我们生成了一个`DataBlock`对象。它类似于一个创建`DataLoaders`的模板。我们仍需要告诉fastai数据的确切来源—在这个例子中，能找到图片的路径为：
+
+```
+dls = bears.dataloaders(path)
+```
+
+A `DataLoaders` includes validation and training `DataLoader`s. `DataLoader` is a class that provides batches of a few items at a time to the GPU. We'll be learning a lot more about this class in the next chapter. When you loop through a `DataLoader` fastai will give you 64 (by default) items at a time, all stacked up into a single tensor. We can take a look at a few of those items by calling the `show_batch` method on a `DataLoader`:
+
+一个`DataLoaders`包含了验证以及训练`DataLoader`的功能。`DataLoader`这个类能够一次给CPU提供很多对象。在下一章我们会学习更多有关他的内容。当你循环一个`DataLoader`类，fastai会一次默认分配给你64个对象，都堆在同一个张量里。我们可以通过在`DataLoader`里调用`show_batch`方法来查看一部分的内容：
+
+```
+dls.valid.show_batch(max_n=4, nrows=1)
+```
+
+
+
+图
+
+
+
+By default `Resize` *crops* the images to fit a square shape of the size requested, using the full width or height. This can result in losing some important details. Alternatively, you can ask fastai to pad the images with zeros (black), or squish/stretch them:
+
+在宽度或者高度不变的情况下，`Resize`默认将图像适应符合尺寸要求的正方形。不过这会损失掉一些重要细节。你也可以选择使用fastai来用0像素（黑色）填充图像或者挤压/拉伸它们。
+
+```
+bears = bears.new(item_tfms=Resize(128, ResizeMethod.Squish))
+dls = bears.dataloaders(path)
+dls.valid.show_batch(max_n=4, nrows=1)
+```
+
+
+
+图
+
+
+
+```
+bears = bears.new(item_tfms=Resize(128, ResizeMethod.Pad, pad_mode='zeros'))
+dls = bears.dataloaders(path)
+dls.valid.show_batch(max_n=4, nrows=1)
+```
+
+
+
+图
+
+
+
+All of these approaches seem somewhat wasteful, or problematic. If we squish or stretch the images they end up as unrealistic shapes, leading to a model that learns that things look different to how they actually are, which we would expect to result in lower accuracy. If we crop the images then we remove some of the features that allow us to perform recognition. For instance, if we were trying to recognize breeds of dog or cat, we might end up cropping out a key part of the body or the face necessary to distinguish between similar breeds. If we pad the images then we have a whole lot of empty space, which is just wasted computation for our model and results in a lower effective resolution for the part of the image we actually use.
+
+所有这些方法看上去总有些费事，或是说有些问题。因为当我们把图像压缩或是拉伸以后它们会变成一个不真实的形状，模型用来训练的物体则和实际不同了，也就可能导致较低的准确性。而通过裁减得到的图像会损失掉一部分帮助我们识别的内容。比如当我们想要识别狗或猫的品种时，使用裁减的方式可能会丢失身体或者面部的重要部分，这些部分恰恰是用来区分相似品种的重要信息。填充0像素的方法则会使得图像大面积空白，这会导致模型算力的浪费，影响我们识别真正有用的部分。
+
+
+
+Instead, what we normally do in practice is to randomly select part of the image, and crop to just that part. On each epoch (which is one complete pass through all of our images in the dataset) we randomly select a different part of each image. This means that our model can learn to focus on, and recognize, different features in our images. It also reflects how images work in the real world: different photos of the same thing may be framed in slightly different ways.
+
+反而在实际应用中我们通常会随机的选取图像的一部分加以裁剪。在每一次循环中（一个循环即将数据集中所有图片都访问一遍）都会随机选取不同的部分。也就是说我们的模型可以学习如何聚焦，识别图像中不同的物体。这也反映了现实世界中的图像是怎样的：同一个事物的不同那个照片总会有细微之处的差别。
+
+
+
+In fact, an entirely untrained neural network knows nothing whatsoever about how images behave. It doesn't even recognize that when an object is rotated by one degree, it still is a picture of the same thing! So actually training the neural network with examples of images where the objects are in slightly different places and slightly different sizes helps it to understand the basic concept of what an object is, and how it can be represented in an image.
+
+其实一个完全未经训练的神经网络对于图像的内容是一无所知的。当一个物体旋转了一度，他也无法认出那还是原来的东西。所以来训练的图片可以是有细微差别的，比如物体位置略微不同，或者物体大小略微不同。这样的话可以帮助神经网络认识到一个物体的基本概念，以及这个物体在图片中有如何的表现形式。
+
+
+
+Here's another example where we replace `Resize` with `RandomResizedCrop`, which is the transform that provides the behavior we just described. The most important parameter to pass in is `min_scale`, which determines how much of the image to select at minimum each time:
+
+下一个例子是我们用 `RandomResizedCrop`取代了 `Resize` ，来实现我们上述的转换方式。 `min_scale`是其中最重要的一个参数，他决定了每次截取的图像范围：
+
+```
+bears = bears.new(item_tfms=RandomResizedCrop(128, min_scale=0.3))
+dls = bears.dataloaders(path)
+dls.train.show_batch(max_n=4, nrows=1, unique=True)
+```
+
+
+
+图
+
+
+
+We used `unique=True` to have the same image repeated with different versions of this `RandomResizedCrop` transform. This is a specific example of a more general technique, called data augmentation.
+
+我们使用 `unique=True` 来获得 `RandomResizedCrop` 产生的不同版本的图像。下述是一个通用技术的典型案例，，被称为数据扩充。
+
+### Data Augmentation
+
+### 数据扩充
+
+*Data augmentation* refers to creating random variations of our input data, such that they appear different, but do not actually change the meaning of the data. Examples of common data augmentation techniques for images are rotation, flipping, perspective warping, brightness changes and contrast changes. For natural photo images such as the ones we are using here, a standard set of augmentations that we have found work pretty well are provided with the `aug_transforms` function. Because our images are now all the same size, we can apply these augmentations to an entire batch of them using the GPU, which will save a lot of time. To tell fastai we want to use these transforms on a batch, we use the `batch_tfms` parameter (note that we're not using `RandomResizedCrop` in this example, so you can see the differences more clearly; we're also using double the amount of augmentation compared to the default, for the same reason):
+
+*数据扩充* 是指随机生成输入数据的变化形式，即表现形式不同但内容相同。常见的数据扩充技术包括旋转，翻转，扭曲，亮度调节以及对比度调节。对于类似我们使用的这种自然图片，我们找到了一个由 `aug_transforms` 函数生成的标准扩充集，而且他的表现非常不错。因为我们现有的图片都为同一尺寸，我们可以用GPU对一批图片使用这些扩充方式，这会节省很多时间。我们用 `batch_tfms` 参数来让fastai对一批图片进行转换（我们没有在这里使用 `RandomResizedCrop` ，所以我们可以更清晰的看见其中的区别；为此我们也会使用默认扩充数量的两倍来处理）：
+
+```
+bears = bears.new(item_tfms=Resize(128), batch_tfms=aug_transforms(mult=2))
+dls = bears.dataloaders(path)
+dls.train.show_batch(max_n=8, nrows=2, unique=True)
+```
+
+
+
+图
+
+
+
+Now that we have assembled our data in a format fit for model training, let's actually train an image classifier using it.
+
+既然我们已经将所有数据转换成适合模型训练的格式，就让我们真正用它来训练一个图像分类器。
+
+
+
+## Training Your Model, and Using It to Clean Your Data
+
+## 训练你的模型，并用它清洗你的数据
+
+Time to use the same lines of code as in <> to train our bear classifier.
+
+We don't have a lot of data for our problem (150 pictures of each sort of bear at most), so to train our model, we'll use `RandomResizedCrop` with an image size of 224 px, which is fairly standard for image classification, and default `aug_transforms`:
+
+现在该用<>里的代码来训练你的熊熊识别器了。
+
+我们没有大量的可用图片（每个品种的熊最多只有150张），所以我们要用 `RandomResizedCrop`将图像转换成224像素。这样的图像算是图像识别的标准格式，并且默认使用`aug_transforms`:
+
+```
+bears = bears.new(
+    item_tfms=RandomResizedCrop(224, min_scale=0.5),
+    batch_tfms=aug_transforms())
+dls = bears.dataloaders(path)
+```
+
+
+
+We can now create our `Learner` and fine-tune it in the usual way:
+
+现在我们可以创建 `Learner` 并对其进行微调：
+
+```
+learn = cnn_learner(dls, resnet18, metrics=error_rate)
+learn.fine_tune(4)
+```
+
+
+
+| epoch | train_loss | valid_loss | error_rate | time  |
+| :---- | :--------- | :--------- | :--------- | :---- |
+| 0     | 1.235733   | 0.212541   | 0.087302   | 00:05 |
+
+| epoch | train_loss | valid_loss | error_rate | time  |
+| :---- | :--------- | :--------- | :--------- | :---- |
+| 0     | 0.213371   | 0.112450   | 0.023810   | 00:05 |
+| 1     | 0.173855   | 0.072306   | 0.023810   | 00:06 |
+| 2     | 0.147096   | 0.039068   | 0.015873   | 00:06 |
+| 3     | 0.123984   | 0.026801   | 0.015873   | 00:06 |
+
+
+
+Now let's see whether the mistakes the model is making are mainly thinking that grizzlies are teddies (that would be bad for safety!), or that grizzlies are black bears, or something else. To visualize this, we can create a *confusion matrix*:
+
+现在我们来看模型产生的错误是否主要是把灰熊当成了泰迪熊（这可是很危险的！），还是把灰熊当成了黑熊，或者其他东西。为了清晰看到这些错误，我们可以创建一个*错误矩阵*：
+
+```
+interp = ClassificationInterpretation.from_learner(learn)
+interp.plot_confusion_matrix()
+```
+
+![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARYAAAEmCAYAAACnN7/iAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAADh0RVh0U29mdHdhcmUAbWF0cGxvdGxpYiB2ZXJzaW9uMy4xLjEsIGh0dHA6Ly9tYXRwbG90bGliLm9yZy8QZhcZAAAdKElEQVR4nO3dd5xV9Z3G8c8DI0iNKFgYVAQFBIMoEI2C2KKiYCyxRwO2ta0xrhrXtprqBlOMbhJb7BKjWSP2thqxhWIhxqigSAQ0gokFRFH87h/nXLwM04Afc+4wz/v1ui/u+Z32vYeZZ36nXkUEZmYptSq6ADNb8zhYzCw5B4uZJedgMbPkHCxmlpyDxcySc7BYo0lqJ+kuSe9Lum0VlnOEpAdT1lYUScMlvVJ0HZVGvo5lzSPpcOB0oB/wIfA88MOIeGIVl3sk8O/ADhHx2SoXWuEkBbBFRMwoupbmxj2WNYyk04FfAD8CNgA2AX4FfD3B4jcFXm0JodIYkqqKrqFiRYRfa8gL+BKwADionmnakgXP3Pz1C6BtPm5nYDbwH8A7wFvA2HzcRcBi4NN8HccAFwI3lS27JxBAVT48BnidrNc0EziirP2Jsvl2ACYD7+f/7lA27jHg+8CT+XIeBLrW8dlK9Z9VVv9+wN7Aq8A/gXPKpv8K8DTwXj7t5UCbfNzj+WdZmH/eQ8qW/13gbeDGUls+T+98Hdvmw92B+cDORf9sNPnPYtEF+JXwPxP2Aj4r/WLXMc33gGeA9YFuwFPA9/NxO+fzfw9YK/+F/Ajoko+vGSR1BgvQAfgA6JuP2wgYkL9fGizAusC/gCPz+Q7Lh9fLxz8GvAb0AdrlwxfX8dlK9V+Q138cMA+4BegEDAA+Bnrl0w8Gts/X2xP4G3Ba2fIC2LyW5f83WUC3Kw+WfJrj8uW0Bx4ALin656KIl3eF1izrAfOj/l2VI4DvRcQ7ETGPrCdyZNn4T/Pxn0bEvWR/rfuuZD2fA1tJahcRb0XEX2uZZh9gekTcGBGfRcR44GVgdNk010bEqxGxCPg9MKiedX5KdjzpU+B3QFfg0oj4MF//X4GBABExNSKeydf7BnAFMKIRn+m/IuKTvJ5lRMRVwHTgz2Rhem4Dy1sjOVjWLO8CXRvY9+8OzCobnpW3LV1GjWD6COi4ooVExEKy3YcTgLck3SOpXyPqKdVUXTb89grU825ELMnfl37x/1E2flFpfkl9JN0t6W1JH5Adl+paz7IB5kXExw1McxWwFXBZRHzSwLRrJAfLmuVpsq7+fvVMM5fsIGzJJnnbylhI1uUv2bB8ZEQ8EBFfI/vL/TLZL1xD9ZRqmrOSNa2IX5PVtUVEdAbOAdTAPPWeRpXUkey41TXAhZLWTVFoc+NgWYNExPtkxxf+R9J+ktpLWkvSSEk/yScbD5wnqZukrvn0N63kKp8HdpK0iaQvAf9ZGiFpA0n7SuoAfEK2S7WklmXcC/SRdLikKkmHAP2Bu1eyphXRiew40IK8N3VijfH/AHqt4DIvBaZGxLHAPcBvVrnKZsjBsoaJiJ+RXcNyHtmByzeBU4A/5pP8AJgCTAP+Ajybt63Muh4Cbs2XNZVlw6AV2dmluWRnSkYAJ9WyjHeBUfm075Kd0RkVEfNXpqYVdAZwONnZpqvIPku5C4HrJb0n6eCGFibp62QH0E/Im04HtpV0RLKKmwlfIGdmybnHYmbJOVjMLDkHi5kl52Axs+Ra5E1Uatsp1H69osuoOIN6NXRtWMvV0MUtLdWsWW8wf/785TZPywyW9uvRdpfziy6j4jw+fmzRJVSsqtbu3Ndmx+2G1NrurWVmyTlYzCw5B4uZJedgMbPkHCxmlpyDxcySc7CYWXIOFjNLzsFiZsk5WMwsOQeLmSXnYDGz5BwsZpacg8XMknOwmFlyDhYzS87BYmbJOVjMLDkHi5kl52Axs+QcLGaWnIPFzJJzsJhZcg4WM0vOwWJmyTlYzCw5B4uZJedgMbPkHCxmlpyDpYm1aiWevmQ//nDO1wA4YeSWvPg/B7Hof49hvU5tC66ueCcefwybbbwhX9l2YNGlVJwHH7ifgQP6MqDf5oz7ycVFl1OvJg8WST0lvVhL+2OShqzE8sZIujxNdavfKfsM4JXZ7y0dfvrld9j7wvuY9c6HBVZVOY448lvcMeHeosuoOEuWLOG0U0/mzrvu47lpL3Hb78bzt5deKrqsOrnH0oSq12vPXoM35tqHX1na9sLMd/n7vAUFVlVZhg3fiS5d1i26jIozedIkevfenM169aJNmzYcdMih3H3XnUWXVaeigqVK0vWSpkm6XVL78pGSfi1piqS/SrqorH2opKckvSBpkqRONebbR9LTkro21QdZEeOO3p5zb5jE5xFFl2LNzNy5c+jRY+Olw9XVPZgzZ06BFdWvqGDpC1wZEQOBD4CTaow/NyKGAAOBEZIGSmoD3Ap8OyK2BnYHFpVmkLQ/cDawd0TMb4oPsSJGDt6Yd97/mOdef7foUqwZilr+GEkqoJLGqSpovW9GxJP5+5uAU2uMP1jS8WT1bQT0BwJ4KyImA0TEB7B04+4CDAH2KLXXlC/veADaNX1X+6v9NmDU0E3Ya9setF2rNZ3bt+G33x7B0Zf+qclrseanuroHs2e/uXR4zpzZdO/evcCK6ldUsNSM36XDkjYDzgCGRsS/JF0HrA2olvlKXgd6AX2AKbWuMOJK4EqAVl16Nvm+yAU3T+GCm7PShg/YkNO+/mWHijXakKFDmTFjOm/MnEn36mpuu/V3XHfjLUWXVaeidoU2kfTV/P1hwBNl4zoDC4H3JW0AjMzbXwa6SxoKIKmTpFIwzgIOAG6QNGC1V5/QSXv3Z8ZVh1K9Xgcm/3x/fnXSsKJLKtTYIw9nt513ZPqrr9C39yZcf+01RZdUEaqqqvj5pZczep89GfTlLTnwoIPpP6Byf9RV277bal2h1BO4F3gc2AGYDhyZt50REVPyXsp2ZD2RT4AJEXFdHiqXAe3Ijq/sDnwDGBIRp0jaBrgZGB0Rr9VVQ6suPaPtLuevng/YjM0bP7boEipWVWufQK3NjtsNYerUKcsd7GnyXaGIeIPsmElNO5dNM6aOeScD29dovi5/ERHP1bFsM2tCjmEzS87BYmbJOVjMLDkHi5kl52Axs+QcLGaWnIPFzJJzsJhZcg4WM0vOwWJmyTlYzCw5B4uZJedgMbPkHCxmlpyDxcySc7CYWXIOFjNLzsFiZsk5WMwsOQeLmSXnYDGz5BwsZpacg8XMknOwmFlyDhYzS87BYmbJOVjMLDkHi5kl52Axs+Sqii6gCIN6deXx8WOLLqPidNv+1KJLqFj/mnx50SU0K+6xmFlyDhYzS87BYmbJOVjMLDkHi5kl52Axs+QcLGaWnIPFzJJzsJhZcg4WM0vOwWJmyTlYzCw5B4uZJedgMbPkHCxmlpyDxcySc7CYWXIOFjNLzsFiZsk5WMwsOQeLmSXnYDGz5BwsZpZcnd8rJOkuIOoaHxH7rpaKzKzZq+8Lyy5psirMbI1SZ7BExJ+ashAzW3M0+BWrkrYAfgz0B9YutUdEr9VYl5k1Y405eHst8GvgM2AX4AbgxtVZlJk1b40JlnYR8QigiJgVERcCu67essysOWtwVwj4WFIrYLqkU4A5wPqrtywza84a02M5DWgPnAoMBo4EvrU6izKz5q3BHktETM7fLgDGrt5yWo4Tjz+G+++7h27d1mfSs9OKLqdwrVqJJ28+i7nvvM+B3/4ND19zGh07ZOcK1l+3E1NefIODT7+q4CqL9eAD93PG6d9myZIljDn6WM486+yiS6pTY84KPUotF8pFRJLjLJJOAD6KiBtWYJ4xwJCIOCVFDUU44shv8W8nnszxx4wpupSKcMrhu/DKzH/QKQ+T3Y/5xdJx4y85lrsea9nhu2TJEk479WTuue8hqnv0YNj2Qxk1al+27N+/6NJq1ZhdoTOAM/PX+cDzwJQUK5dUFRG/WZFQWVMMG74TXbqsW3QZFaF6/XXYa9gArr3jqeXGdWzflhFD+3DXoy07WCZPmkTv3puzWa9etGnThoMOOZS777qz6LLq1Jhdoak1mp6U1KiL5ySdDxwBvAnMB6YCo4CngB2BCZI6ke1m3QLcWzb7l4FeQPnW6wvsVbb8TsA0oE9EfCqpcz68RUR82pgarXjjzjyQcy/9Ix3br73cuH133ZrHJr3Chws/LqCyyjF37hx69Nh46XB1dQ8mTfpzgRXVr8Eei6R1y15dJe0JbNiI+YYABwLbAAcAQ8pGrxMRIyLip6WGiJgbEYMiYhBwFfCH/PR2qe18sp7SU2XzfAg8BuyTNx2az7dcqEg6XtIUSVPmz5vXUPnWREYO34p3/vkhz/3tzVrHH7zXYH5/f82/bS1PxPK37UkqoJLGaczp5qlkx1hEdpHcTOCYRsw3DLgzIhbB0psaS26tayZJOwLHAsPL2rYAxgG75j2T8lmuBs4C/kh2cPm42pYbEVcCVwJsO3hInTdXWtP66qBejBrxZfYaNoC2bdaic4e1+e0PjuLo825g3S91YMiAnhzSwg/aQtZDmT37i/CdM2c23bt3L7Ci+jUmWLaMiGX6oZLaNmK++uJ0Ya0zSBsB1wD7RsSCvK0D8HvguIiYW3OeiHhSUk9JI4DWEfFiI2qzCnHBZRO44LIJAAwfvAWnHbUbR5+XHXI74GvbcN/EF/lk8WdFllgRhgwdyowZ03lj5ky6V1dz262/47obbym6rDo15uDt8kfU4OlGzPcEMFrS2pI68sXuSq0krUUWIN+NiFfLRl0LXBsRE+uZ/QZgfD5tszD2yMPZbecdmf7qK/TtvQnXX3tN0SVVnIP2HMzv709ynqDZq6qq4ueXXs7offZk0Je35MCDDqb/gAFFl1Wn+p7HsiFQDbSTtA1f9EA6k10wV6+ImCxpAvACMIvs+Mj79cyyAzAUuEjSRXnb14FvAH0kHZ23HVvLvDcDPyALl2bh2gr+a1OUiVOnM3Hq9KXDex53aYHVVJ69Ru7NXiP3LrqMRqlvV2hPYAzQA/gpXwTLB8A5jVz+JRFxoaT2wOPATyNimR3m/N6jkuVPC9Teq5oCXFc2PAy4PSLea2RdZrYa1fc8luuB6yUdGBF/WMnlXymp9LiF6yPi2ZVcTp0kXQaMBJpHlJu1AI05eDtY0iOl3oCkLsB/RMR5Dc0YEYevaoGNWMe/r+51mNmKaczB25HluxgR8S/cOzCzejQmWFqXn16W1A5ozOlmM2uhGrMrdBPwiKTSqdyxwPWrryQza+4ac6/QTyRNA3YnOzN0P7Dp6i7MzJqvxn5h2dvA52T3/uwG/G21VWRmzV59F8j1Ibup7zDgXbL7exQRuzRRbWbWTNW3K/QyMBEYHREzACR9p0mqMrNmrb5doQPJdoEelXSVpN2o/8ZCMzOgnmCJiDsi4hCgH9kzT74DbCDp15L2aKL6zKwZavDgbUQsjIibI2IU2X1DzwOV+xRfMytcY88KARAR/4yIK1I9SNvM1kwrFCxmZo3hYDGz5BwsZpacg8XMknOwmFlyDhYzS87BYmbJOVjMLDkHi5kl52Axs+QcLGaWnIPFzJJzsJhZcg4WM0vOwWJmyTXme4XWOAKqWjtTa/rX5MuLLqFi9fnOhKJLqEhvv/lere3+7TKz5BwsZpacg8XMknOwmFlyDhYzS87BYmbJOVjMLDkHi5kl52Axs+QcLGaWnIPFzJJzsJhZcg4WM0vOwWJmyTlYzCw5B4uZJedgMbPkHCxmlpyDxcySc7CYWXIOFjNLzsFiZsk5WMwsOQeLmSXnYDGz5BwsZpacg8XMknOwmFlyDhYzS87BYmbJOVjMLDkHS0EefOB+Bg7oy4B+mzPuJxcXXU5F8bbJtK1qxYQzhnP/2SN4+JydOX3vvkvHnTmqH4+dvyuPnLsLY0dsVmCVtatqipVIWgc4PCJ+tQLzXAgsiIhLarT3BO6OiK1S1tiUlixZwmmnnsw99z1EdY8eDNt+KKNG7cuW/fsXXVrhvG2+8Mlnn3PoL5/io8VLqGol/vCdYTz60jtsvkFHundpxy4/+D8iYL2ObYoudTlN1WNZBzipidZV8SZPmkTv3puzWa9etGnThoMOOZS777qz6LIqgrfNsj5avASAqtatqGotIoIjh/fkF/e9SkQ2zbsLFhdYYe2aKlguBnpLel7SOElnSposaZqki0oTSTpX0iuSHgb6lrUPlvSCpKeBk8vaJ0oaVDb8pKSBTfSZVtrcuXPo0WPjpcPV1T2YM2dOgRVVDm+bZbUS3PfdETz34z154uV5PD/rPTbt2oHR23bn7jN34voTt6Nntw5Fl7mcpgqWs4HXImIQ8BCwBfAVYBAwWNJOkgYDhwLbAAcAQ8vmvxY4NSK+WmO5VwNjACT1AdpGxLTaCpB0vKQpkqbMmz8v3SdbCVH6U1NGUgGVVB5vm2V9HjDyv//Educ/yNabdqHPRp1oU9WKTz77nFHjHmf8U3/nkiMGNbygJlbEwds98tdzwLNAP7KgGQ7cEREfRcQHwAQASV8C1omIP+Xz31i2rNuAUZLWAo4GrqtrpRFxZUQMiYgh3bp2S/yRVkx1dQ9mz35z6fCcObPp3r17gRVVDm+b2n2w6DOemTGfnbdcn7feW8R9z88F4P4X3qJf984FV7e8IoJFwI8jYlD+2jwirsnHLf/nKpu+tnYi4iOyHtDXgYOBW1ZHwakNGTqUGTOm88bMmSxevJjbbv0d+4zat+iyKoK3zRfW7diGzu2y8ytt12rFsL7deO0fC3hw2tvs0KcrANtvvh4z31lQZJm1apKzQsCHQKf8/QPA9yXdHBELJFUDnwKPA9dJujivazRwRUS8J+l9ScMi4gngiBrLvhq4C5gYEf9skk+ziqqqqvj5pZczep89WbJkCd8aczT9BwwouqyK4G3zhfU7r83PvrkNrVuJVoK7n5vLI3/9B5Nff5dLvzWYY3fpzcJPPuOs8S8UXepyVNs+7WpZkXQLMBC4D5gNHJuPWgB8MyJek3QucBQwK5/mpYi4JD/+8lvgI7Jg+kb56WZJLwOnRcT9jall8OAh8eSfpyT6ZNYS9PnOhKJLqEhv33o6i9+ZsdxBsKbqsRARh9dourSWaX4I/LCW9qnA1mVNF5beSOpOtkv3YJJCzWyVNesrbyUdBfwZODciPi+6HjPLNFmPZXWIiBuAG4quw8yW1ax7LGZWmRwsZpacg8XMknOwmFlyDhYzS87BYmbJOVjMLDkHi5kl52Axs+QcLGaWnIPFzJJzsJhZcg4WM0vOwWJmyTlYzCw5B4uZJedgMbPkHCxmlpyDxcySc7CYWXIOFjNLzsFiZsk5WMwsOQeLmSXnYDGz5BwsZpacg8XMklNEFF1Dk5M0D5hVdB25rsD8oouoQN4utau07bJpRHSr2dgig6WSSJoSEUOKrqPSeLvUrrlsF+8KmVlyDhYzS87BUrwriy6gQnm71K5ZbBcfYzGz5NxjMbPkHCxmlpyDxcySc7CYWXIOlgJIWreWts2KqKWSSGpddA2VSNJWRdewohwsxbhLUufSgKT+wF0F1lMpZkgal28P+8JvJE2SdJKkdYoupjEcLMX4EVm4dJQ0GLgN+GbBNVWCgcCrwNWSnpF0fHkAt1QRMQw4AtgYmCLpFklfK7isevk6loJI2g84C+gEHBAR0wsuqaJI2gkYD6wD3A58PyJmFFtVsfJdxf2AXwIfAALOiYj/LbSwWjhYmpCky4DyDb4r8DrwBkBEnFpAWRUj/8XZBxgL9ARuBG4GhgM/iog+xVVXHEkDybbJPsBDwDUR8ayk7sDTEbFpoQXWoqroAlqYKTWGpxZSReWaDjwKjIuIp8rab897MC3V5cDVZL2TRaXGiJgr6bziyqqbeywFkNQB+DgiluTDrYG2EfFRsZUVS1LHiFhQdB226txjKcYjwO5A6ZeoHfAgsENhFRWofBdR0nLjW+ouoqS/sOyu8zIiYmATlrNCHCzFWLv8L3NELJDUvsiCClZzF9Eyo/J/T87/vTH/9wigonu3DpZiLJS0bUQ8C5Cfcl7UwDxrrIi4HkDScOCp0i5i3rZtYYUVLCJmAUjaMSJ2LBt1tqQnge8VU1nDfB1LMU4DbpM0UdJE4FbglIJrqgQPAP8naYOytquLKqaCdJA0rDQgaQegQ4H1NMg9lgJExGRJ/YC+ZNcivBwRnxZcViV4BRgHPCbpmPzM0PIHXVqeY4DfSvpSPvwecHSB9TTIwVKcvkB/YG1gG0lExA0F11S0iIi7Jb0C3Crpt9Rz8LKliIipwNb5VciKiPeLrqkhDpYCSPovYGeyYLkXGAk8AbT0YBFAREzPu/7XkV3m3yJJOr2OdgAi4mdNWtAK8DGWYnwD2A14OyLGAlsDbYstqSLsW3oTER9FxMFArwLrKVqn/DUEOBGozl8nkP1RqljusRRjUUR8LumzvHv7Di37F6jkdUm3A8eUXSz4R6BFnhmKiIsAJD0IbBsRH+bDF5LduFqx3GMpxpT89veryC7rfxaYVGxJFeFFYCIwUVLvvM0Hb2ETYHHZ8GKye6kqlnssBYiIk/K3v5F0P9A5IqYVWVOFiIj4laQXyB4r8V188BayC+MmSbqDbHvsT4Ufj/O9Qk2ooYu9ShfMtVSSnouIbfL3G5Fd3zMkIlryVcnA0p+d4fng4xHxXJH1NMTB0oQkPVo2WL7hRfbXetcmLqmiSNooIt4qG64CdoiIxwssqyLkZ8m2iIhrJXUDOkbEzKLrqouDpQCS2gEnAcPIAmYi8OuI+LjQwgoi6ZsRcVNdp1cr+bRqU8gvTxgC9I2IPvlzWG6rcZl/RfExlmJcT/YEsF/mw4eR7TMfXFhFxSpdnt6p0Coq1/7ANmQH+UvPYanobeVgKUbfiNi6bPjR/IBlixQRV+TPpPkgIn5edD0VaHFEhKTSoyUq+j4h8OnmojwnafvSgKTtgCcLrKdw+R3N+zY4Ycv0e0lXAOtIOg54mOxShYrlHksTKntwz1rAUZL+ng9vCrxUZG0V4ilJl5OdDVpYamzpZ8uAbmQPFP+A7B6zC8geFFaxfPC2CUmq96HHpedvtFRlZ81KP5Q+WwZIejYitq3RNs1PkDPAwdEId5OFSulq2wA+kDQoIp4vrqxiSDqR7OxhL0nlF1B2osJ3nd1jsYoh6Ray06oTyMJlH2Ay0I/s9OpPCiyvyeXPX+kC/Bg4u2zUhxHxz2KqahwHi1UMSQ8AB5aeByypI9mxhf2BqRFR0Xf02hd8VsgqSc2b7T4FNs2/S+eTYkqyleFjLFZJbgGekXRnPjwaGJ9ft+GzZs2Id4WsouTfWDCM7BjLExHhrwZphhwsZpacj7GYWXIOFjNLzsFiK03SEknPS3pR0m2r8jWxknaWdHf+fl9JZ9cz7TqSTqprfD3zXSjpjJWt0RrPwWKrYlFEDIqIrchOE59QPlKZFf4Zi4gJEXFxPZOsQ3ZFqlUoB4ulMhHYXFJPSX+T9Cuy54dsLGkPSU9Lejbv2XQEkLSXpJclPQEcUFqQpDH5zYhI2kDSHZJeyF87ABcDvfPe0rh8ujMlTZY0TdJFZcs6V9Irkh4mu4HPmoCDxVZZ/gjJkcBf8qa+wA3582sXAucBu+c30k0BTpe0Ntmt/6PJnuW6YR2L/yXwp/z5NdsCfyW7vP21vLd0pqQ9gC2ArwCDgMGSdspPXR9K9pCkA4ChiT+61cEXyNmqaCepdHPgROAaoDswKyKeydu3J/tyrSfzb/BrAzxNdv/PzIiYDiDpJuD4WtaxK3AULH1my/uSutSYZo/8VXrAdEeyoOkE3FH6jiJJE1bp01qjOVhsVSyKiEHlDXl4LCxvAh6KiMNqTDeIdF/tIeDHEXFFjXWclnAdtgK8K2Sr2zPAjpI2B5DUXlIf4GVgs7IvJjusjvkfIft6USS1zr858kOWfT7uA8DRZcduqiWtDzwO7C+pXf6M2NGJP5vVwcFiq1VEzAPGkN3zM40saPrl30hwPHBPfvC2rmfVfBvYJX/63lRgQES8S7Zr9aKkcRHxINl9Rk/n090OdMqfPHcr8DzwB7LdNWsCvqTfzJJzj8XMknOwmFlyDhYzS87BYmbJOVjMLDkHi5kl52Axs+T+Hyc5MzrgrYepAAAAAElFTkSuQmCC)
+
+
+
+The rows represent all the black, grizzly, and teddy bears in our dataset, respectively. The columns represent the images which the model predicted as black, grizzly, and teddy bears, respectively. Therefore, the diagonal of the matrix shows the images which were classified correctly, and the off-diagonal cells represent those which were classified incorrectly. This is one of the many ways that fastai allows you to view the results of your model. It is (of course!) calculated using the validation set. With the color-coding, the goal is to have white everywhere except the diagonal, where we want dark blue. Our bear classifier isn't making many mistakes!
+
+矩阵中的行分别代表我们数据集中所有的黑熊，灰熊，泰迪熊。列则分别代表被模型判断成的黑熊，灰熊，泰迪熊。因此，矩阵对角线的数字就是被正确判断的图像数量，非对角线的数字则代表被误判的数量。这是fastai中检查模型训练结果的方法之一。当然它是用变化形式的图片集来计算的。通过对颜色处理编码，我们将对角线设置成深蓝色，其他地方设置成白色。这样我们就可以清晰看到结果——我们的熊熊识别器并没有产生很多错误！
+
+   
+
+It's helpful to see where exactly our errors are occurring, to see whether they're due to a dataset problem (e.g., images that aren't bears at all, or are labeled incorrectly, etc.), or a model problem (perhaps it isn't handling images taken with unusual lighting, or from a different angle, etc.). To do this, we can sort our images by their *loss*.
+
+我们要去了解错误到底发生在哪里，错误是否是数据集的问题造成的（比如图像上根本就不是熊，或者被标记错误等），还是模型自身的问题造成的（也许它无法应对不同光线的，不同角度的图像）。这对我们来说是一件极有帮助的事。为此我们需要以他们的丢失数来给图像分类。
+
+
+
+The loss is a number that is higher if the model is incorrect (especially if it's also confident of its incorrect answer), or if it's correct, but not confident of its correct answer. In a couple of chapters we'll learn in depth how loss is calculated and used in the training process. For now, `plot_top_losses` shows us the images with the highest loss in our dataset. As the title of the output says, each image is labeled with four things: prediction, actual (target label), loss, and probability. The *probability* here is the confidence level, from zero to one, that the model has assigned to its prediction:
+
+丢失数的数值较高则可能是模型不准确（它还对结果很自信），或是结果是正确的但是模型本身无法确定。在好几个章节中我们都将深入学习丢失数是如何计算以及在训练过程中使用的。现在，`plot_top_losses` 找到了我们数据集中丢失数最高的图像。正如输出的标题所示，每个图像都标记了四个指标：预测，实际（目标标记），丢失数，和概率。这里的*概率*是模型对于预测结果的自信等级，从0到1：
+
+```
+interp.plot_top_losses(5, nrows=1)
+```
