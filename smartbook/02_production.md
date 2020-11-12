@@ -808,3 +808,775 @@ The loss is a number that is higher if the model is incorrect (especially if it'
 ```
 interp.plot_top_losses(5, nrows=1)
 ```
+
+![]()
+
+This output shows that the image with the highest loss is one that has been predicted as "grizzly" with high confidence. However, it's labeled (based on our Bing image search) as "black." We're not bear experts, but it sure looks to us like this label is incorrect! We should probably change its label to "grizzly."
+
+结果显示损失最多的图片是被预测为“灰熊”的那张，且这一结果被判断为高可靠性。不过根据必应图像搜索的结果，它是被标注为“黑熊”的。我们不是研究熊的专家，但这一结果看起来是错的！我们应该吧标签改为“灰熊”。
+
+
+
+The intuitive approach to doing data cleaning is to do it *before* you train a model. But as you've seen in this case, a model can actually help you find data issues more quickly and easily. So, we normally prefer to train a quick and simple model first, and then use it to help us with data cleaning.
+
+直接办法是在训练模型之前清洗数据。但如此案例所示，模型其实可以帮助你更快更便捷的找到数据的问题。所以我们通常倾向于先训练一个快捷简单的模型，然后用它帮助我们清洗数据。
+
+
+
+fastai includes a handy GUI for data cleaning called `ImageClassifierCleaner` that allows you to choose a category and the training versus validation set and view the highest-loss images (in order), along with menus to allow images to be selected for removal or relabeling:
+
+Fastai 中包含了一个数据清洗的GUI叫做 `ImageClassifierCleaner` ，你能够选择类别以及培训与验证集，并按序查看损失最大的图像，当然你也可以选择要删除或重新标记的图像的菜单：
+
+
+
+```
+#hide_output
+cleaner = ImageClassifierCleaner(learn)
+cleaner
+```
+
+![]()
+
+```
+#hide
+# for idx in cleaner.delete(): cleaner.fns[idx].unlink()
+# for idx,cat in cleaner.change(): shutil.move(str(cleaner.fns[idx]), path/cat)
+```
+
+We can see that amongst our "black bears" is an image that contains two bears: one grizzly, one black. So, we should choose `<Delete>` in the menu under this image. `ImageClassifierCleaner` doesn't actually do the deleting or changing of labels for you; it just returns the indices of items to change. So, for instance, to delete (`unlink`) all images selected for deletion, we would run:
+
+我们发现在“黑熊”图片中包含了两种熊：一种是灰熊，一种是黑熊。所以，我们选择图片下方的 `<Delete>` 菜单。 `ImageClassifierCleaner` 实际上不能删除或者变更标签；他只能返回图像的索引以供修改。所以假如我们要删除所有选中的图像（使用`unlink`），我们可以运行：
+
+```
+for idx in cleaner.delete(): cleaner.fns[idx].unlink()
+```
+
+To move images for which we've selected a different category, we would run:
+
+运行以下代码将选中的图像移动至不同的类别：
+
+
+
+```
+for idx,cat in cleaner.change(): shutil.move(str(cleaner.fns[idx]), path/cat)
+```
+
+> s: Cleaning the data and getting it ready for your model are two of the biggest challenges for data scientists; they say it takes 90% of their time. The fastai library aims to provide tools that make it as easy as possible.
+>
+> s:清洗并准备好数据是数据科学家最大的两个挑战；他们称这占据了他们90%的时间。fastai的知识库想要提供尽可能简便的工具。
+
+
+
+We'll be seeing more examples of model-driven data cleaning throughout this book. Once we've cleaned up our data, we can retrain our model. Try it yourself, and see if your accuracy improves!
+
+在这本书里我们将看到更多例子清洗以模型驱动的数据。一旦我们清洗了我们的数据，我们可以重新训练我们的模型。请你自己尝试一下来看看你的准确性有没有提高！
+
+
+
+> note: No Need for Big Data: After cleaning the dataset using these steps, we generally are seeing 100% accuracy on this task. We even see that result when we download a lot fewer images than the 150 per class we're using here. As you can see, the common complaint that *you need massive amounts of data to do deep learning* can be a very long way from the truth!
+>
+> 注释：没必要使用大数据：在使用这些步骤清洗数据集之后，我们通常可以得到100% 的准确率。甚至在我们只下载了比原先更少图片时，我们依旧能够得到这样的结果。如你所见，诸如“你需要大量数据来做深度学习”的说法可能并不准确！
+>
+> 
+
+Now that we have trained our model, let's see how we can deploy it to be used in practice.
+
+既然我们训练了我们的模型，就让我们看看我们能够如何使用他们。
+
+
+
+## Turning Your Model into an Online Application
+
+## 将你的模型变成线上应用
+
+We are now going to look at what it takes to turn this model into a working online application. We will just go as far as creating a basic working prototype; we do not have the scope in this book to teach you all the details of web application development generally.
+
+现在我们来看看如何将这个模型变成一个可用的线上应用。我们会搭建一个基本的工作模型；在这本书里我们没有足够的章节教授完整的应用搭建细节。
+
+
+
+### Using the Model for Inference
+
+### 使用推算模型
+
+
+
+Once you've got a model you're happy with, you need to save it, so that you can then copy it over to a server where you'll use it in production. Remember that a model consists of two parts: the *architecture* and the trained *parameters*. The easiest way to save the model is to save both of these, because that way when you load a model you can be sure that you have the matching architecture and parameters. To save both parts, use the `export` method.
+
+当你得到了一个满意的模型，你需要保存下来这样就可以复制到任何一个用于生产的服务器上。记住模型包含两部分：架构以及训练的参数。最简单的保存方法是保存这两部分，那么当你下载它时才能够保证包含了匹配的架构及参数。 `export` 可以用来保存这两部分。
+
+
+
+This method even saves the definition of how to create your `DataLoaders`. This is important, because otherwise you would have to redefine how to transform your data in order to use your model in production. fastai automatically uses your validation set `DataLoader` for inference by default, so your data augmentation will not be applied, which is generally what you want.
+
+这个方法甚至能够保存你如何创建 `DataLoaders`的方法。这很重要，否则当你要使用你的模型时还要重新定义如何转换你的数据。默认fastai能够自动使用有效集 `DataLoader` 进行推断，所以即便你想，你的数据扩充方法也不会被使用。
+
+
+
+When you call `export`, fastai will save a file called "export.pkl":
+
+当你调用 `export`, fastai会保存一个"export.pkl"文件：
+
+
+
+```
+learn.export()
+```
+
+Let's check that the file exists, by using the `ls` method that fastai adds to Python's `Path` class:
+
+我们使用fastai添加在Python `Path` 类中的 `ls` 方法来验证文件是否存在：
+
+
+
+```
+path = Path()
+path.ls(file_exts='.pkl')
+```
+
+输出结果： (#1) [Path('export.pkl')]
+
+You'll need this file wherever you deploy your app to. For now, let's try to create a simple app within our notebook.
+
+不论你把应用部署在哪儿，你都会用到这个文件。现在，让我们尝试在笔记本里创建一个简单的应用。
+
+
+
+When we use a model for getting predictions, instead of training, we call it *inference*. To create our inference learner from the exported file, we use `load_learner` (in this case, this isn't really necessary, since we already have a working `Learner` in our notebook; we're just doing it here so you can see the whole process end-to-end):
+
+我们用模型来得到预测结果的这个过程被称作推算而不是训练。我们使用`load_learner` 来为生成的文件创建一个推算学习器（这并不是必须的，因为书已经有了一个可用的 `Learner` ；在这里我们只是为了让你能够看到实现的全过程）：
+
+
+
+```
+learn_inf = load_learner(path/'export.pkl')
+```
+
+When we're doing inference, we're generally just getting predictions for one image at a time. To do this, pass a filename to `predict`:
+
+当我们在推算时，通常每次只能得到一副图像的预测结果。所以我们给 `predict`一个文件名：
+
+
+
+输出结果： learn_inf.predict('images/grizzly.jpg')
+
+
+
+```
+('grizzly', tensor(1), tensor([9.0767e-06, 9.9999e-01, 1.5748e-07]))
+```
+
+This has returned three things: the predicted category in the same format you originally provided (in this case that's a string), the index of the predicted category, and the probabilities of each category. The last two are based on the order of categories in the *vocab* of the `DataLoaders`; that is, the stored list of all possible categories. At inference time, you can access the `DataLoaders` as an attribute of the `Learner`:
+
+此处将返回三个结果：根据你给出的格式生成的预测类目（此处是一个字符串），预测类目的指针，以及每个类目的几率。后两者是基于类目名称在`DataLoaders`中词汇的排序；也就是说，其中包含了存储的所有可能的类目。在推算时，你能够获得一个 `DataLoaders` ，它是 `Learner`的其中一个属性：
+
+
+
+```
+learn_inf.dls.vocab
+```
+
+
+
+输出结果： (#3) ['black','grizzly','teddy']
+
+We can see here that if we index into the vocab with the integer returned by `predict` then we get back "grizzly," as expected. Also, note that if we index into the list of probabilities, we see a nearly 1.00 probability that this is a grizzly.
+
+由此可见如果我们指向一个词，其中包含 `predict` 函数返回的整数，我们就会如愿得到“灰熊”的结果。同时请注意如果我们指向几率列表，我们会看见结果是灰熊的几率近乎为1.00。
+
+
+
+We know how to make predictions from our saved model, so we have everything we need to start building our app. We can do it directly in a Jupyter notebook.
+
+我们已经知道了如何用我们保存的模型生成预测结果，所以，万事俱备，只差开始搭建我们的应用了。我们可以直接在Jupyter记事本里开始写。
+
+
+
+### Creating a Notebook App from the Model
+
+### 用模型搭建一个文本应用
+
+To use our model in an application, we can simply treat the `predict` method as a regular function. Therefore, creating an app from the model can be done using any of the myriad of frameworks and techniques available to application developers.
+
+要在应用中使用我们的模型，我们可以直接把 `predict` 方法当做一个常用函数。因此我们可以使用任何一个可用架构和技术来创建这个应用。
+
+
+
+However, most data scientists are not familiar with the world of web application development. So let's try using something that you do, at this point, know: it turns out that we can create a complete working web application using nothing but Jupyter notebooks! The two things we need to make this happen are:
+
+不过大多数数据科学家并不熟悉网页应用的开发。所以我们试着用一些你熟悉的东西，或者说你只是知道而已：事实证明我们仅需要用Jupyter记事本就可以搭建一个完整的网页应用！我们要用到的两个东西是：
+
+
+
+- IPython widgets (ipywidgets)
+- Voilà
+
+*IPython widgets* are GUI components that bring together JavaScript and Python functionality in a web browser, and can be created and used within a Jupyter notebook. For instance, the image cleaner that we saw earlier in this chapter is entirely written with IPython widgets. However, we don't want to require users of our application to run Jupyter themselves.
+
+*IPython widgets* 是GUI组件，他们能够将JavaScript和Python的功能放在同一个浏览器页面中使用，并且它们可以在Jupyter记事本中实现。比如上文中提到的图像清洗器就完全是用*IPython widgets* 写的。不过我们不想要求我们应用的使用者自己运行Jupyter。
+
+
+
+That is why *Voilà* exists. It is a system for making applications consisting of IPython widgets available to end users, without them having to use Jupyter at all. Voilà is taking advantage of the fact that a notebook *already is* a kind of web application, just a rather complex one that depends on another web application: Jupyter itself. Essentially, it helps us automatically convert the complex web application we've already implicitly made (the notebook) into a simpler, easier-to-deploy web application, which functions like a normal web application rather than like a notebook.
+
+所以出现了 *Voilà* 。这一系统使得终端用户能够使用包含IPython widgets的应用，它就比Jupyter本身稍微复杂一点点。它将我们创建的网页（基于记事本的）应用自动转化得更加简单，更容易部署，所以和记事本相比它本身更像是一种网页应用。
+
+
+
+But we still have the advantage of developing in a notebook, so with ipywidgets, we can build up our GUI step by step. We will use this approach to create a simple image classifier. First, we need a file upload widget:
+
+用记事本开发依旧是有好处的，所以我们可以利用*IPython widgets* 一步一步搭建我们的GUI。我们将使用这种方法穿件一个简单的图像识别器。首先我们需要一个文件来上传这些小工具：
+
+
+
+```
+#hide_output
+btn_upload = widgets.FileUpload()
+btn_upload
+```
+
+![An upload button](images/att_00008.png)
+
+Now we can grab the image:
+
+现在我们可以抓取图像了：
+
+
+
+```
+#hide
+# For the book, we can't actually click an upload button, so we fake it
+btn_upload = SimpleNamespace(data = ['images/grizzly.jpg'])
+```
+
+```
+img = PILImage.create(btn_upload.data[-1])
+```
+
+![Output widget representing the image](images/att_00009.png)
+
+We can use an `Output` widget to display it:
+
+我们用 `Output` 工具来运行：
+
+
+
+```
+#hide_output
+out_pl = widgets.Output()
+out_pl.clear_output()
+with out_pl: display(img.to_thumb(128,128))
+out_pl
+```
+
+![Output widget representing the image](images/att_00009.png)
+
+Then we can get our predictions:
+
+这样我们就可以得到预测结果了：
+
+
+
+```
+pred,pred_idx,probs = learn_inf.predict(img)
+```
+
+and use a `Label` to display them:
+
+用 `Label` 运行：
+
+
+
+```
+#hide_output
+lbl_pred = widgets.Label()
+lbl_pred.value = f'Prediction: {pred}; Probability: {probs[pred_idx]:.04f}'
+lbl_pred
+Prediction: grizzly; Probability: 1.0000
+```
+
+We'll need a button to do the classification. It looks exactly like the upload button:
+
+我们会用到一个按钮来执行分类。他看上去很想上传按钮：
+
+
+
+```
+#hide_output
+btn_run = widgets.Button(description='Classify')
+btn_run
+```
+
+We'll also need a *click event handler*; that is, a function that will be called when it's pressed. We can just copy over the lines of code from above:
+
+我们还需要一个*点击处理*；当按钮被点击时这个功能就会被唤起。我们可以直接复制上述的代码行：
+
+```
+def on_click_classify(change):
+    img = PILImage.create(btn_upload.data[-1])
+    out_pl.clear_output()
+    with out_pl: display(img.to_thumb(128,128))
+    pred,pred_idx,probs = learn_inf.predict(img)
+    lbl_pred.value = f'Prediction: {pred}; Probability: {probs[pred_idx]:.04f}'
+
+btn_run.on_click(on_click_classify)
+```
+
+
+
+You can test the button now by pressing it, and you should see the image and predictions update automatically!
+
+We can now put them all in a vertical box (`VBox`) to complete our GUI:
+
+现在你可以点击这个按钮加以测试，你会看见图片和预测结果自动上传了！
+
+现在将他们都放进一个下拉框 (`VBox`) 里，就可以完成你的GUI了：
+
+
+
+```
+#hide
+#Putting back btn_upload to a widget for next cell
+btn_upload = widgets.FileUpload()
+```
+
+```
+#hide_output
+VBox([widgets.Label('Select your bear!'), 
+      btn_upload, btn_run, out_pl, lbl_pred])
+```
+
+![The whole widget](images/att_00011.png)
+
+We have written all the code necessary for our app. The next step is to convert it into something we can deploy.
+
+我们已经完成了我们的应用的最关键代码。下一步是将它们转换成我们可以不部署的形式。
+
+
+
+### Turning Your Notebook into a Real App
+
+### 将你的记事本变成一个真正的应用
+
+
+
+```
+#hide
+# !pip install voila
+# !jupyter serverextension enable voila —sys-prefix
+```
+
+Now that we have everything working in this Jupyter notebook, we can create our application. To do this, start a new notebook and add to it only the code needed to create and show the widgets that you need, and markdown for any text that you want to appear. Have a look at the *bear_classifier* notebook in the book's repo to see the simple notebook application we created.
+
+既然Jupyter里所有的东西都可以正常工作了，我们就可以搭建我们的应用了。首先新建一个记事本，只添加搭建和显示工具需要的代码，并且标记所有你想要展示的内容。请看一下书中关于 *bear_classifier* 的内容来了解我们穿兼得简单应用。
+
+
+
+Next, install Voilà if you haven't already, by copying these lines into a notebook cell and executing it:
+
+接下来，如果还没安装Voilà ，请复制下述代码行到记事本中并且运行它：
+
+
+
+```
+!pip install voila
+!jupyter serverextension enable voila —sys-prefix
+```
+
+Cells that begin with a `!` do not contain Python code, but instead contain code that is passed to your shell (bash, Windows PowerShell, etc.). If you are comfortable using the command line, which we'll discuss more later in this book, you can of course simply type these two lines (without the `!` prefix) directly into your terminal. In this case, the first line installs the `voila` library and application, and the second connects it to your existing Jupyter notebook.
+
+带有 `!` 的命令不包含Python代码，但是包含复制到shell上的代码 (bash, Windows PowerShell等)。如果你习惯用命令行（我们将在后面的章节谈论命令行），你仍旧可以将不含 `!` 的两行代码敲进你的命令提示符，第一行用来安装 `voila` 和应用，第二行和你的Jupyter记事本连接。
+
+
+
+Voilà runs Jupyter notebooks just like the Jupyter notebook server you are using now does, but it also does something very important: it removes all of the cell inputs, and only shows output (including ipywidgets), along with your markdown cells. So what's left is a web application! To view your notebook as a Voilà web application, replace the word "notebooks" in your browser's URL with: "voila/render". You will see the same content as your notebook, but without any of the code cells.
+
+用Voilà运行Jupyter记事本就和Jupyter记事本服务器一样，但它也做了一些非常重要的是：它移除了所有单元的输入，只显示输出（包括*IPython widgets*）和标记的单元。所以，剩下的就是网页应用！将你的记事本看作是Voilà网页应用，将“notebooks”的文字换成网页链接"voila/render"。你会看见和记事本中一样的内容，只不过没有任何的代码单元。
+
+Of course, you don't need to use Voilà or ipywidgets. Your model is just a function you can call (`pred,pred_idx,probs = learn.predict(img)`), so you can use it with any framework, hosted on any platform. And you can take something you've prototyped in ipywidgets and Voilà and later convert it into a regular web application. We're showing you this approach in the book because we think it's a great way for data scientists and other folks that aren't web development experts to create applications from their models.
+
+当然你不是必须要用Voilà或者ipywidgets。你可以把你的模型当做一个方法(`pred,pred_idx,probs = learn.predict(img)`)，所以你可以在任何架构任何平台上使用它。
+
+We have our app, now let's deploy it!
+
+现在应用有了，那就来部署它吧！
+
+
+
+### Deploying your app
+
+### 部署你的应用
+
+As you now know, you need a GPU to train nearly any useful deep learning model. So, do you need a GPU to use that model in production? No! You almost certainly *do not need a GPU to serve your model in production*. There are a few reasons for this:
+
+现在你知道了你需要一个GUI来训练差不多所有有用的深度学习模型。所以在实际使用中你是否需要一个GUI来使用这个模型呢？不！你基本不需要在实际使用中用一个GUI来服务你的模型。理由如下：
+
+
+
+- As we've seen, GPUs are only useful when they do lots of identical work in parallel. If you're doing (say) image classification, then you'll normally be classifying just one user's image at a time, and there isn't normally enough work to do in a single image to keep a GPU busy for long enough for it to be very efficient. So, a CPU will often be more cost-effective.
+
+- 已知GPU在大量识别的工作同时发生时很有用。如果你在做我们说的图像区分，通常来说一次只会识别一个用户的图像，而对于单张图片的识别工作并不能够让GPU工作足够长的时间，这不足以使GUI明显增加他的效率。
+
+  
+
+- An alternative could be to wait for a few users to submit their images, and then batch them up and process them all at once on a GPU. But then you're asking your users to wait, rather than getting answers straight away! And you need a high-volume site for this to be workable. If you do need this functionality, you can use a tool such as Microsoft's [ONNX Runtime](https://github.com/microsoft/onnxruntime), or [AWS Sagemaker](https://aws.amazon.com/sagemaker/)
+
+- 一个选择是等待多个用户提交他们的图像，然后批量上传并在GPU中一次计算。但你得让你的用户等待一段时间才能得到答案！而且你需要一个大容量的网站使他能够工作。如果你确实需要这个功能，你可以使用诸如Microsoft的 [ONNX Runtime](https://github.com/microsoft/onnxruntime), 或者 [AWS Sagemaker](https://aws.amazon.com/sagemaker/)等工具。
+
+  
+
+- The complexities of dealing with GPU inference are significant. In particular, the GPU's memory will need careful manual management, and you'll need a careful queueing system to ensure you only process one batch at a time.
+
+- 处理GPU推算的复杂性是非常重要的。尤其是需要非常仔细的手动管理GPU的存储，并且你需要一个惊喜的队列机制来确保一次处理一个推送。
+
+  
+
+- There's a lot more market competition in CPU than GPU servers, as a result of which there are much cheaper options available for CPU servers.
+
+- 在CPU服务器的行业中存在着比GPU行业更多的市场竞争，导致有更多便宜的CPU服务器以供选择。
+
+  
+
+Because of the complexity of GPU serving, many systems have sprung up to try to automate this. However, managing and running these systems is also complex, and generally requires compiling your model into a different form that's specialized for that system. It's typically preferable to avoid dealing with this complexity until/unless your app gets popular enough that it makes clear financial sense for you to do so.
+
+由于GPU服务的复杂性，诞生了许多系统尝试自动运行。但这些系统的管理和运行也十分复杂，通常还需要将你的模型编译成适合系统的形式。这样能够更好地避免因复杂性导致的问题，当然等到你的应用足够畅销时，为了多赚钱你还是要处理这些问题。
+
+
+
+For at least the initial prototype of your application, and for any hobby projects that you want to show off, you can easily host them for free. The best place and the best way to do this will vary over time, so check the [book's website](https://book.fast.ai/) for the most up-to-date recommendations. As we're writing this book in early 2020 the simplest (and free!) approach is to use [Binder](https://mybinder.org/). To publish your web app on Binder, you follow these steps:
+
+至少对于初版的原型，你可以融入任何你喜欢的元素，反正是免费的。当然这么做最好的时机取决于时间的不同，所以你可以在 [book's website](https://book.fast.ai/) 上查看最新的推荐你。我们是在2020年初编写这本书的，所以这时候最方便（且免费）的选择就是使用 [Binder](https://mybinder.org/)了。你可以使用如下步骤将你的网页应用发布在Binder上：
+
+
+
+2. Paste the URL of that repo into Binder's URL, as shown in <>.
+3. Change the File dropdown to instead select URL.
+4. In the "URL to open" field, enter `/voila/render/name.ipynb` (replacing `name` with the name of for your notebook).
+5. Click the clickboard button at the bottom right to copyt the URL and paste it somewhere safe.
+6. Click Launch.
+
+1. 将文中的链接粘贴至Binder中。
+
+2. 更换文件下拉框以选中链接。
+
+3. 在“"URL to open”文件中输入 `/voila/render/name.ipynb` （将 `name` 替换成你的文本的名字）。
+
+4. 点击右下角的点击按钮复制链接，然后把它粘贴至某处保存起来。
+
+5. 点击运行。
+
+   
+
+The first time you do this, Binder will take around 5 minutes to build your site. Behind the scenes, it is finding a virtual machine that can run your app, allocating storage, collecting the files needed for Jupyter, for your notebook, and for presenting your notebook as a web application.
+
+第一次执行时，Binder要花大约5分钟建立你的站点。他会在后台寻找一台虚拟机运行你的应用，分配存储空间，找到相应的文件来运行Jupyter，运行你的记事本，并将你的记事本以网页应用的形式加以展现。
+
+
+
+Finally, once it has started the app running, it will navigate your browser to your new web app. You can share the URL you copied to allow others to access your app as well.
+
+最终，当开始运行你的应用时，他将你的浏览器换成你的新应用。你可以将你复制的链接分享给别人，这样他们也可以有权是用你的应用。
+
+
+
+For other (both free and paid) options for deploying your web app, be sure to take a look at the [book's website](https://book.fast.ai/).
+
+请一定要看 [book's website](https://book.fast.ai/)，这里还有很多其他选择能让你部署你的应用（有免费的，也有付费的）。
+
+
+
+You may well want to deploy your application onto mobile devices, or edge devices such as a Raspberry Pi. There are a lot of libraries and frameworks that allow you to integrate a model directly into a mobile application. However, these approaches tend to require a lot of extra steps and boilerplate, and do not always support all the PyTorch and fastai layers that your model might use. In addition, the work you do will depend on what kind of mobile devices you are targeting for deployment—you might need to do some work to run on iOS devices, different work to run on newer Android devices, different work for older Android devices, etc. Instead, we recommend wherever possible that you deploy the model itself to a server, and have your mobile or edge application connect to it as a web service.
+
+你可能想在手机上安装你的应用，或者诸如Raspberry Pi之类的终端系统。有许多的知识库和架构能帮助你将一个模型直接集成为一个手机应用。但这些方法有很大可能性会要做很多额外的步骤和模板，也无法完全支持所有你用到的PyTorch 和 fastai。另外，你的工作量还取决于你部署的设备—在iOS设备上运行时你可能需要一些额外的步骤，在新的和旧的安卓设备上使用方法也不同，等等。所以我们推荐你将他部署在服务器上，然后连接你的手机或者移动终端，把他当做一个线上服务来使用。
+
+
+
+There are quite a few upsides to this approach. The initial installation is easier, because you only have to deploy a small GUI application, which connects to the server to do all the heavy lifting. More importantly perhaps, upgrades of that core logic can happen on your server, rather than needing to be distributed to all of your users. Your server will have a lot more memory and processing capacity than most edge devices, and it is far easier to scale those resources if your model becomes more demanding. The hardware that you will have on a server is also going to be more standard and more easily supported by fastai and PyTorch, so you don't have to compile your model into a different form.
+
+这个方法有很多好处。最初的安装比较简单，因为你只要安装一个很小的GUI应用，由他来连接到服务器做其他的活。或许更重要的是，比起升级所有用户端，你只需要升级服务器的核心逻辑。你的服务器会有大量的内存，运行能力也比大部分终端设备高，当你的模型要求变高时，在服务器上更容易规划这些资源。且服务器上的硬件会更加标准，更容易被fastai和PyTorch支持，所以你也不用转换格式了。
+
+
+
+There are downsides too, of course. Your application will require a network connection, and there will be some latency each time the model is called. (It takes a while for a neural network model to run anyway, so this additional network latency may not make a big difference to your users in practice. In fact, since you can use better hardware on the server, the overall latency may even be less than if it were running locally!) Also, if your application uses sensitive data then your users may be concerned about an approach which sends that data to a remote server, so sometimes privacy considerations will mean that you need to run the model on the edge device (it may be possible to avoid this by having an *on-premise* server, such as inside a company's firewall). Managing the complexity and scaling the server can create additional overhead too, whereas if your model runs on the edge devices then each user is bringing their own compute resources, which leads to easier scaling with an increasing number of users (also known as *horizontal scaling*).
+
+当然也有劣势。你的应用会需要网络连接，每次请求时你的模型都会有延迟。（神经网络的运行需要时间，所以额外的网络延迟并不会对个人用户造成很大影响。事实上因为你在服务器上可以使用更好的硬件，延迟时间可能比你在终端运行时间还短！）另外如果你的应用包含了敏感数据的话，用户可能会担心这些数据被传输到一个远程的服务器上是否安全，所以有时隐私问题意味着你不得不在终端设备运行你的模型（使用加密的服务器可能会避免这个问题，比如说企业内网）。当用户在终端设备上运行模型而不是使用你的算力，对复杂性的管理以及对于服务器规模的扩大都会造成额外的算力浪费。这一行为也更容易让用户数增长（也就是横向拓展）。
+
+
+
+> A: I've had a chance to see up close how the mobile ML landscape is changing in my work. We offer an iPhone app that depends on computer vision, and for years we ran our own computer vision models in the cloud. This was the only way to do it then since those models needed significant memory and compute resources and took minutes to process inputs. This approach required building not only the models (fun!) but also the infrastructure to ensure a certain number of "compute worker machines" were absolutely always running (scary), that more machines would automatically come online if traffic increased, that there was stable storage for large inputs and outputs, that the iOS app could know and tell the user how their job was doing, etc. Nowadays Apple provides APIs for converting models to run efficiently on device and most iOS devices have dedicated ML hardware, so that's the strategy we use for our newer models. It's still not easy but in our case it's worth it, for a faster user experience and to worry less about servers. What works for you will depend, realistically, on the user experience you're trying to create and what you personally find is easy to do. If you really know how to run servers, do it. If you really know how to build native mobile apps, do that. There are many roads up the hill.
+>
+> A: 在我的工作中，我有幸见证了移动ML景观的变迁。我们提供一个基于计算机视觉的iPhone应用，而多年来我们在云上运行我们的计算机视觉模型。这些模型需要很强的内存和算力，还需要数分钟来写入，因此这是唯一的使用方法。这个方法不仅需要搭建模型（有趣！），还需要搭建一个确保一定数量的计算机能够运行的架构（可怕），一旦流量增加，更多机器能够自动及时上线确保有足够的稳定存储空间来应付大量输入输出，那么iOS应用可以知道运行状况如何并告知用户。现在苹果公司提供了相关的接口来保证模型能够在设备上运行顺畅，而大部分的iOS设备都有专用的ML硬件，所以这也是我们我们在更新的模型上使用的策略。这种方式依旧不算轻松，但在我们的例子中，是值得一做的，这能让我们拥有更快的用户体验，也不用过多担心服务器。实际上这些工作取决于你想要打造什么样的用户体验，以及你自己觉得怎么样做更加简单。如果你真的知道怎么运行服务器，就去做。如果你擅长建造本地手机应用，就去做。得到最终结果的方法不止一个。
+
+
+
+Overall, we'd recommend using a simple CPU-based server approach where possible, for as long as you can get away with it. If you're lucky enough to have a very successful application, then you'll be able to justify the investment in more complex deployment approaches at that time.
+
+总之，只要可以再做替换，我们推荐你使用一个简单的CPU服务器。如果你很幸运的拥有了一个成功的应用，那时候再去考虑投资更为复杂的部署。
+
+
+
+Congratulations, you have successfully built a deep learning model and deployed it! Now is a good time to take a pause and think about what could go wrong.
+
+恭喜你成功搭建并部署了一个深度学习模型。现在应该停一停，想想哪里可能会出错。
+
+
+
+## How to Avoid Disaster
+
+## 如何避免灾难
+
+In practice, a deep learning model will be just one piece of a much bigger system. As we discussed at the start of this chapter, a data product requires thinking about the entire end-to-end process, from conception to use in production. In this book, we can't hope to cover all the complexity of managing deployed data products, such as managing multiple versions of models, A/B testing, canarying, refreshing the data (should we just grow and grow our datasets all the time, or should we regularly remove some of the old data?), handling data labeling, monitoring all this, detecting model rot, and so forth. In this section we will give an overview of some of the most important issues to consider; for a more detailed discussion of deployment issues we refer to you to the excellent [Building Machine Learning Powered Applications](http://shop.oreilly.com/product/0636920215912.do) by Emmanuel Ameisen (O'Reilly)
+
+事实上深度学习模型只是更大系统的一部分。正如我们在开头谈到的，一个数据产品需要考虑从概念到生产的整个端到端的过程。我们不能在本书中包含所有部署数据产品的难点，比如多版本模型的管理，A/B测试，冒泡测试，更新数据（我们是不是让我们的数据集不断增长，还是定期删除旧的数据？），处理数据标签，并且监控这一切，检测模型漏洞，等等。在这一小节我们来看看一字儿最重要的问题；我们向你推荐Emmanuel Ameisen (O'Reilly)的 [Building Machine Learning Powered Applications](http://shop.oreilly.com/product/0636920215912.do) 来针对部署问题进行深入探讨。
+
+
+
+One of the biggest issues to consider is that understanding and testing the behavior of a deep learning model is much more difficult than with most other code you write. With normal software development you can analyze the exact steps that the software is taking, and carefully study which of these steps match the desired behavior that you are trying to create. But with a neural network the behavior emerges from the model's attempt to match the training data, rather than being exactly defined.
+
+最大的问题之一就是理解和测试深度学习模型的行为要比你写的其他代码复杂得多。通常在软件开发中你可以确切分析软件运行的每一步，并且细心学习哪些步骤匹配你想要的行为。但在神经网络中的行为不能被确切定义，而是由模型决定于训练数据的判断。
+
+
+
+This can result in disaster! For instance, let's say we really were rolling out a bear detection system that will be attached to video cameras around campsites in national parks, and will warn campers of incoming bears. If we used a model trained with the dataset we downloaded there would be all kinds of problems in practice, such as:
+
+这会造成极大的灾难。比如我们想要实现一个熊熊识别器并连接国家公园露营地旁的录像机，在熊靠近时能够警示露营者。如果我们用的是经由下载的数据集训练的模型，将会有一大堆的问题，比如：
+
+
+
+- Working with video data instead of images
+
+- Handling nighttime images, which may not appear in this dataset
+
+- Dealing with low-resolution camera images
+
+- Ensuring results are returned fast enough to be useful in practice
+
+- Recognizing bears in positions that are rarely seen in photos that people post online (for example from behind, partially covered by bushes, or when a long way away from the camera)
+
+- 这一场景使用的是录像数据而不是图像
+
+- 要处理夜间画面，而这没有出现在数据集中
+
+- 要处理低分辨率照片
+
+- 要确保使用中结果回传足够快速
+
+- 要识别处在不常见的位置中的熊（比如从后面，被灌木部分遮挡，或者离相机很远）
+
+  
+
+A big part of the issue is that the kinds of photos that people are most likely to upload to the internet are the kinds of photos that do a good job of clearly and artistically displaying their subject matter—which isn't the kind of input this system is going to be getting. So, we may need to do a lot of our own data collection and labelling to create a useful system.
+
+大部分的问题就处在人们上传的大部分图像都是取景绝佳，效果极好的作品—和这个系统真正得到的输入相差极大。所以，我们需要大量收集并标记数据以建造一个实用的系统。
+
+
+
+This is just one example of the more general problem of *out-of-domain* data. That is to say, there may be data that our model sees in production which is very different to what it saw during training. There isn't really a complete technical solution to this problem; instead, we have to be careful about our approach to rolling out the technology.
+
+这只是因范围之外的数据而产生的问题之一。也就是说，生产环境中得到的数据可能和训练环境中的差别巨大。针对这个问题还没有一个科学办法能够解决；我们需要仔细思考如何实现这项技术。
+
+
+
+There are other reasons we need to be careful too. One very common problem is *domain shift*, where the type of data that our model sees changes over time. For instance, an insurance company may use a deep learning model as part of its pricing and risk algorithm, but over time the types of customers that the company attracts, and the types of risks they represent, may change so much that the original training data is no longer relevant.
+
+还有一些你应该仔细思考的原因。一个非常常见的就是范围转换，因为我们的模型看到的数据类型一直在变。比如一家保险公司会在他们的定价算法和风险预测算法中使用深度学习模型，但是公司吸引的客户，他们代表的风险种类都会和最初的数据相差巨大甚至毫不相干。
+
+
+
+Out-of-domain data and domain shift are examples of a larger problem: that you can never fully understand the entire behaviour of your neural network. They have far too many parameters to be able to analytically understand all of their possible behaviors. This is the natural downside of their best feature—their flexibility, which enables them to solve complex problems where we may not even be able to fully specify our preferred solution approaches. The good news, however, is that there are ways to mitigate these risks using a carefully thought-out process. The details of this will vary depending on the details of the problem you are solving, but we will attempt to lay out here a high-level approach, summarized in <>, which we hope will provide useful guidance.
+
+范围外的数据和范围转换代表了一个巨大的问题：你无法完全理解你的神经网络的行为。他们距离能够辩证的理解所有可能行为还有很长一段路。他们最大的特点也带来了不足—他们的灵活性，这种灵活性能够让他们在我们无法选择最佳方案时处理复杂问题。好消息是通过仔细思考，还有很多减轻这种风险的方法。细节会随着你处理的问题不同而改变，但是在这里我们尝试着给出一个高级的方法来提供有用的指导。
+
+
+
+![Deployment process](images/att_00061.png)
+
+Where possible, the first step is to use an entirely manual process, with your deep learning model approach running in parallel but not being used directly to drive any actions. The humans involved in the manual process should look at the deep learning outputs and check whether they make sense. For instance, with our bear classifier a park ranger could have a screen displaying video feeds from all the cameras, with any possible bear sightings simply highlighted in red. The park ranger would still be expected to be just as alert as before the model was deployed; the model is simply helping to check for problems at this point.
+
+如果可能的话，第一步就是使用一个完全手动的过程，同时你的深度学习模型也在运行但是不会直接驱动任何动作。负责手动的人需要查看深度学习的输出结果并且检查他们是否是有意义的结果。比如在公园使用熊熊识别器时，就需要有人监控所有录像来查看是否有被标记为红色的可疑目标。在这个模型被部署使用之前，公园看守人就需要在预测到熊靠近时发出警示；在这种情况下模型只是简单的用来发现问题。
+
+
+
+The second step is to try to limit the scope of the model, and have it carefully supervised by people. For instance, do a small geographically and time-constrained trial of the model-driven approach. Rather than rolling our bear classifier out in every national park throughout the country, we could pick a single observation post, for a one-week period, and have a park ranger check each alert before it goes out.
+
+第二步是试着限制模型范围，并且让人们能够监控。比如在地理条件和时间条件限制的情况下对模型驱动的方法做一个测试。比起在所有国家公园使用我们的熊熊识别器，我们可以以一周时间为限挑选一个观测点，让公园守卫在发布预警前复核每个警告。
+
+
+
+Then, gradually increase the scope of your rollout. As you do so, ensure that you have really good reporting systems in place, to make sure that you are aware of any significant changes to the actions being taken compared to your manual process. For instance, if the number of bear alerts doubles or halves after rollout of the new system in some location, we should be very concerned. Try to think about all the ways in which your system could go wrong, and then think about what measure or report or picture could reflect that problem, and ensure that your regular reporting includes that information.
+
+接着不断扩大使用范围。这时请确保你有非常良好的汇报机制来保证你能够察觉到这一过程和手动过程相比的变化。比如在一些新的地点使用新系统后熊出没的警告翻倍了或是减半了，我们要额外小心了。试着排查所有系统出错的可能原因，然后寻找什么方法或报告或图片能够反映这个问题，并确保你的常规报告中包含这些信息。
+
+
+
+> J: I started a company 20 years ago called *Optimal Decisions* that used machine learning and optimization to help giant insurance companies set their pricing, impacting tens of billions of dollars of risks. We used the approaches described here to manage the potential downsides of something going wrong. Also, before we worked with our clients to put anything in production, we tried to simulate the impact by testing the end-to-end system on their previous year's data. It was always quite a nerve-wracking process, putting these new algorithms into production, but every rollout was successful.
+>
+> J：我在20年前创办了我的公司 *Optimal Decisions* 。我们利用机器学习和优选法帮助大型保险公司定价，影响到数亿美元的风险。我们用这个方法管控一些潜在的缺点。同时，在我们将客户的任何东西投入进来之前我们都会试着用历年数据加以测试来模拟影响。将这些新的算法投产是一个令人头疼的过程，但好在每次都成功了。
+
+
+
+### Unforeseen Consequences and Feedback Loops
+
+### 不可预见的情况和反馈机制
+
+
+
+One of the biggest challenges in rolling out a model is that your model may change the behaviour of the system it is a part of. For instance, consider a "predictive policing" algorithm that predicts more crime in certain neighborhoods, causing more police officers to be sent to those neighborhoods, which can result in more crimes being recorded in those neighborhoods, and so on. In the Royal Statistical Society paper ["To Predict and Serve?"](https://rss.onlinelibrary.wiley.com/doi/full/10.1111/j.1740-9713.2016.00960.x), Kristian Lum and William Isaac observe that: "predictive policing is aptly named: it is predicting future policing, not future crime."
+
+使用一个模型最大的挑战就是你的模型会改变他所属系统的行为。假如一个“警务预测”算法在一个特定的街区预测出更多的犯罪事件，那么更对的警力被送到这里，又会造成这个街区有更多的犯罪记录，等等。在一份官方的统计学论文 ["为了预测和服务?"](https://rss.onlinelibrary.wiley.com/doi/full/10.1111/j.1740-9713.2016.00960.x)，Kristian Lum 和 William Isaac 说到：警务预测这个名字非常准确：它在预测警力，而不是预测犯罪。“
+
+
+
+Part of the issue in this case is that in the presence of bias (which we'll discuss in depth in the next chapter), *feedback loops* can result in negative implications of that bias getting worse and worse. For instance, there are concerns that this is already happening in the US, where there is significant bias in arrest rates on racial grounds. [According to the ACLU](https://www.aclu.org/issues/smart-justice/sentencing-reform/war-marijuana-black-and-white), "despite roughly equal usage rates, Blacks are 3.73 times more likely than whites to be arrested for marijuana." The impact of this bias, along with the rollout of predictive policing algorithms in many parts of the US, led Bärí Williams to [write in the *New York Times*](https://www.nytimes.com/2017/12/02/opinion/sunday/intelligent-policing-and-my-innocent-children.html): "The same technology that’s the source of so much excitement in my career is being used in law enforcement in ways that could mean that in the coming years, my son, who is 7 now, is more likely to be profiled or arrested—or worse—for no reason other than his race and where we live."
+
+这个例子中的问题在于偏见的存在（我们将在下一章节深入探讨），反馈机制也会对这些偏见造成负面的影响。在美国已经产生了这样的担忧，不同种族的逮捕率正在产生种族偏见。根据[ACLU](https://www.aclu.org/issues/smart-justice/sentencing-reform/war-marijuana-black-and-white)所述， “尽管大家做了同样的事，黑人因为大麻被逮捕的比例是白人的3.73倍。”随着警务预测算法在美国使用而造成的偏见让 Bärí Williams 在 [*New York Times*](https://www.nytimes.com/2017/12/02/opinion/sunday/intelligent-policing-and-my-innocent-children.html) 中写道：“这个在我职业生涯中带来诸多兴奋的科技已经使用在执法工作中，这意味着在以后的日子里，我7岁的儿子很可能仅仅因为他的种族和他生活的地方而被捕。”
+
+
+
+A helpful exercise prior to rolling out a significant machine learning system is to consider this question: "What would happen if it went really, really well?" In other words, what if the predictive power was extremely high, and its ability to influence behavior was extremely significant? In that case, who would be most impacted? What would the most extreme results potentially look like? How would you know what was really going on?
+
+在使用机器学习系统前的一个很好的练习就是思考一下这个问题：“如果真的大量使用，会发生什么？”或者说是，如果潜在的影响非常非常大，能影响的行为非常重要，会发生什么？那么谁会受到最大的影响？最极端的情况可能会是什么样子的？你要如何知道真正会发生的是什么？
+
+
+
+Such a thought exercise might help you to construct a more careful rollout plan, with ongoing monitoring systems and human oversight. Of course, human oversight isn't useful if it isn't listened to, so make sure that there are reliable and resilient communication channels so that the right people will be aware of issues, and will have the power to fix them.
+
+这样的思考或许能够帮助你在现有监管机制和人的监视中制定一个更加靠谱的使用计划。当然，人的监管要被遵守才有用，所以请确保你有可靠的沟通渠道让正确的人知道问题并加以解决。
+
+
+
+## Get Writing!
+
+## 开始写作！
+
+
+
+One of the things our students have found most helpful to solidify their understanding of this material is to write it down. There is no better test of your understanding of a topic than attempting to teach it to somebody else. This is helpful even if you never show your writing to anybody—but it's even better if you share it! So we recommend that, if you haven't already, you start a blog. Now that you've completed Chapter 2 and have learned how to train and deploy models, you're well placed to write your first blog post about your deep learning journey. What's surprised you? What opportunities do you see for deep learning in your field? What obstacles do you see?
+
+对于学生来说最有用的就是牢记这些材料最好的方式就是写下来。而测试你理解程度最好的方式就是试着教授另一个人。而更好的方式是向他人分享你写作的成果。所以如果你还没有的话，我们推荐你开始写博客。既然你已经完成了 第二章节的学习并且已经学习了如何训练部署模型，你可以开始写关于你的深度学习之旅的的第一篇博文了。你可以写写让你惊讶的东西，在你的领域你看到了什么深度学习的应用机会，或者你遇到的障碍。
+
+
+
+Rachel Thomas, cofounder of fast.ai, wrote in the article ["Why You (Yes, You) Should Blog"](https://medium.com/@racheltho/why-you-yes-you-should-blog-7d2544ac1045):
+
+fast.ai的联合创始人Rachel Thomas在文章 ["你为什么要写博客（对，说的就是你）"](https://medium.com/@racheltho/why-you-yes-you-should-blog-7d2544ac1045)当中写道：
+
+
+
+```
+asciidoc
+____
+The top advice I would give my younger self would be to start blogging sooner. Here are some reasons to blog:
+
+* It’s like a resume, only better. I know of a few people who have had blog posts lead to job offers!
+* Helps you learn. Organizing knowledge always helps me synthesize my own ideas. One of the tests of whether you understand something is whether you can explain it to someone else. A blog post is a great way to do that.
+* I’ve gotten invitations to conferences and invitations to speak from my blog posts. I was invited to the TensorFlow Dev Summit (which was awesome!) for writing a blog post about how I don’t like TensorFlow.
+* Meet new people. I’ve met several people who have responded to blog posts I wrote.
+* Saves time. Any time you answer a question multiple times through email, you should turn it into a blog post, which makes it easier for you to share the next time someone asks.
+如果能给年轻的我一个建议，那一定会是赶快开始写博客。原因如下：
+*博客就像是你的简历，并且比简历更好的展示你。我知道不少人因为发布的博文拿到了工作邀请！
+*博客帮助你学习。整理你的知识总是能够帮你整合自己的想法。检验你是否理解一个东西的方法就是你是否能够将他解释给别人听。写博客就是很好的一个途径。
+*通过发表博客，我收到过很多会议邀请和演讲邀请。我还曾因为在博客吐槽 TensorFlow 而受邀参加 TensorFlow 开发峰会（牛逼！）。
+*遇见新的人。我认识了很多回复我的博客的人。
+*节约时间。每次你回复无数份邮件都在回答同一个问题时，你可以直接发一个博客回应，下次有人再问你就可以很方便的把博文分享给他。
+
+____
+```
+
+Perhaps her most important tip is this:
+
+也许她最重要的意见就是：
+
+
+
+> : You are best positioned to help people one step behind you. The material is still fresh in your mind. Many experts have forgotten what it was like to be a beginner (or an intermediate) and have forgotten why the topic is hard to understand when you first hear it. The context of your particular background, your particular style, and your knowledge level will give a different twist to what you’re writing about.
+>
+> ：对于距你一步之遥的人来是，你是帮助他们的最佳人选。你脑海中的知识还热乎着。很多专家都忘了做一个初学者（或是刚入门的人）的感受，也忘了当你第一次听到这些概念时是多么难以理解。因为你特殊的背景，特殊的风格以及你的知识面，你将写出独一无二的东西。
+
+
+
+We've provided full details on how to set up a blog in <>. If you don't have a blog already, take a look at that now, because we've got a really great approach set up for you to start blogging for free, with no ads—and you can even use Jupyter Notebook!
+
+ 在文中我们描述了创建博客的所有细节。如果你还没有博客，快去看看吧，因为我们为你准备了一个绝佳且免费的写博客方法，没有广告哦~你还可以直接用Jupyter记事本！
+
+
+
+## Questionnaire
+
+## 练习题
+
+
+
+1. Provide an example of where the bear classification model might work poorly in production, due to structural or style differences in the training data.
+2. Where do text models currently have a major deficiency?
+3. What are possible negative societal implications of text generation models?
+4. In situations where a model might make mistakes, and those mistakes could be harmful, what is a good alternative to automating a process?
+5. What kind of tabular data is deep learning particularly good at?
+6. What's a key downside of directly using a deep learning model for recommendation systems?
+7. What are the steps of the Drivetrain Approach?
+8. How do the steps of the Drivetrain Approach map to a recommendation system?
+9. Create an image recognition model using data you curate, and deploy it on the web.
+10. What is `DataLoaders`?
+11. What four things do we need to tell fastai to create `DataLoaders`?
+12. What does the `splitter` parameter to `DataBlock` do?
+13. How do we ensure a random split always gives the same validation set?
+14. What letters are often used to signify the independent and dependent variables?
+15. What's the difference between the crop, pad, and squish resize approaches? When might you choose one over the others?
+16. What is data augmentation? Why is it needed?
+17. What is the difference between `item_tfms` and `batch_tfms`?
+18. What is a confusion matrix?
+19. What does `export` save?
+20. What is it called when we use a model for getting predictions, instead of training?
+21. What are IPython widgets?
+22. When might you want to use CPU for deployment? When might GPU be better?
+23. What are the downsides of deploying your app to a server, instead of to a client (or edge) device such as a phone or PC?
+24. What are three examples of problems that could occur when rolling out a bear warning system in practice?
+25. What is "out-of-domain data"?
+26. What is "domain shift"?
+27. What are the three steps in the deployment process?
+
+1. 基于训练数据结构和风格的不同，举例说明熊熊识别器在哪个使用场景中效果比较差。
+2. 文本模型现在的缺点在哪里？
+3. 文本模型可能产生哪些负面的社会影响？
+4. 当模型出错且可能是有害的情况下，还有什么好的选择来进行自动化流程？
+5. 深度学习特别擅长哪种表格数据？
+6. 在推荐系统中直接使用深度学习模型有什么主要缺点？
+7. 传动系方法的步骤有哪些？
+8. 这些步骤如何构建一个推荐系统的？
+9. 利用你收集的数据搭建一个图像识别模型，在网站上部署。
+10. 什么是 `DataLoaders`？
+11. 我们要告诉fastai哪四件事来创建`DataLoaders`？
+12.  `splitter` 参数在 `DataBlock` 中有什么作用？
+13. 如何确保随机分割总是能得到一样的变量集？
+14. 通常使用哪些字母来标记独立的和非独立的变量？
+15. 裁剪、填充和压缩调整大小的方法都有什么不同？你如何从中选择一个合适的方法？
+16. 什么是数据扩充？作用是什么？
+17.  `item_tfms` 和 `batch_tfms`的差别是什么？
+18. 什么是混淆矩阵？
+19.  `export` 保存什么？
+20. 我们用模型获得预测而不是训练的过程叫什么？
+21. IPython widgets是什么？
+22. 什么时候你会选择使用CPU部署？什么时候选择GPU？
+23. 和手机，个人电脑之类的用户设备（或是终端设备）相比，将应用部署在服务器上的弊端是什么？
+24. 举例说出在应用熊熊警告系统时会出现的三个问题？
+25. 什么是“范围外数据”？
+26. 什么是“范围变化”？
+27. 部署过程的三个步骤是什么？
+
+
+
+### Further Research
+
+### 进一步研究
+
+
+
+1. Consider how the Drivetrain Approach maps to a project or problem you're interested in.
+2. When might it be best to avoid certain types of data augmentation?
+3. For a project you're interested in applying deep learning to, consider the thought experiment "What would happen if it went really, really well?"
+4. Start a blog, and write your first blog post. For instance, write about what you think deep learning might be useful for in a domain you're interested in.
+
+1. 思考传动系方法是如何指导你感兴趣的项目或是问题的。
+2. 什么时候避免特定的数据扩充是最好的？
+3. 将深度学习应用在你感兴趣的项目中，思考这个问题“如果他被广泛使用，将会发生什么？”
+4. 开通你的博客，并开始第一次写作。比如深度学习会在哪个你感兴趣的领域中产生作用。
